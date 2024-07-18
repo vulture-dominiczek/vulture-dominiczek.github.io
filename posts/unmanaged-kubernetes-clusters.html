@@ -1,0 +1,308 @@
+<!DOCTYPE html><html lang="en"><head><link rel="stylesheet" href="/css/highlight-min.css"/><link rel="stylesheet" href="/css/highlight-2.css"/><script src="/js/highlight-min.js"></script><link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="true"/><script async="" src="https://www.googletagmanager.com/gtag/js?id=G-R2WGDD3HQD"></script><script async="" src="/js/ganalytics.js"></script><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /><meta name="viewport" content="width=device-width"/><meta charSet="utf-8"/><link rel="stylesheet" href="/css/highlight-2.css"/><script type="text/javascript" src="/js/terraform.js"></script><script defer="">hljs.registerLanguage(&#x27;terraform&#x27;, window.hljsDefineTerraform); hljs.highlightAll();</script><title>k8s on GCP: a walkthrough</title><meta name="Description" content="Starting with benefits of managing kuberentes cluster, I explain how to setup one."/><meta name="next-head-count" content="7"/><link rel="preload" href="/_next/static/css/e72c3bc5835bab2f.css" as="style"/><link rel="stylesheet" href="/_next/static/css/e72c3bc5835bab2f.css" data-n-g=""/><noscript data-n-css=""></noscript><script defer="" nomodule="" src="/_next/static/chunks/polyfills-5cd94c89d3acac5f.js"></script><script src="/_next/static/chunks/webpack-514908bffb652963.js" defer=""></script><script src="/_next/static/chunks/framework-6e4ba497ae0c8a3f.js" defer=""></script><script src="/_next/static/chunks/main-eab312c0bf2a7270.js" defer=""></script><script src="/_next/static/chunks/pages/_app-320db0fa935ee33b.js" defer=""></script><script src="/_next/static/chunks/pages/posts/unmanaged-kubernetes-clusters-0d2bff8741377e32.js" defer=""></script><script src="/_next/static/kIHyjbkeyiubHYJDX2tlA/_buildManifest.js" defer=""></script><script src="/_next/static/kIHyjbkeyiubHYJDX2tlA/_ssgManifest.js" defer=""></script><script src="/_next/static/kIHyjbkeyiubHYJDX2tlA/_middlewareManifest.js" defer=""></script><style data-href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&family=Fira+Code:wght@300;400;500;600;700&display=swap">@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjQdl9vug.woff) format('woff')}@font-face{font-family:'Fira Code';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9eCBsR6Z2vfE9aq3bL0fxyUs4tcw4W_GNsFVQ.woff) format('woff')}@font-face{font-family:'Fira Code';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9eCBsR6Z2vfE9aq3bL0fxyUs4tcw4W_D1sFVQ.woff) format('woff')}@font-face{font-family:'Fira Code';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9eCBsR6Z2vfE9aq3bL0fxyUs4tcw4W_A9sFVQ.woff) format('woff')}@font-face{font-family:'Fira Code';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9eCBsR6Z2vfE9aq3bL0fxyUs4tcw4W_ONrFVQ.woff) format('woff')}@font-face{font-family:'Fira Code';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9eCBsR6Z2vfE9aq3bL0fxyUs4tcw4W_NprFVQ.woff) format('woff')}@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjQdl9fsw-IxBSL_g94.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjQdl9fug-IxBSL_g94.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjQdl9fsQ-IxBSL_g94.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjQdl9fsA-IxBSL_g94.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/cormorantgaramond/v16/co3YmX5slCNuHLi8bLeY9MK7whWMhyjQdl9fvg-IxBSL_g.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Fira Code';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0NSDqFGedCMX.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Fira Code';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh2dSDqFGedCMX.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Fira Code';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0dSDqFGedCMX.woff2) format('woff2');unicode-range:U+1F00-1FFF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3tSDqFGedCMX.woff2) format('woff2');unicode-range:U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh09SDqFGedCMX.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3dSDqFGedA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Fira Code';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0NSDqFGedCMX.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Fira Code';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh2dSDqFGedCMX.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Fira Code';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0dSDqFGedCMX.woff2) format('woff2');unicode-range:U+1F00-1FFF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3tSDqFGedCMX.woff2) format('woff2');unicode-range:U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh09SDqFGedCMX.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3dSDqFGedA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Fira Code';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0NSDqFGedCMX.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Fira Code';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh2dSDqFGedCMX.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Fira Code';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0dSDqFGedCMX.woff2) format('woff2');unicode-range:U+1F00-1FFF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3tSDqFGedCMX.woff2) format('woff2');unicode-range:U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh09SDqFGedCMX.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3dSDqFGedA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Fira Code';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0NSDqFGedCMX.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Fira Code';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh2dSDqFGedCMX.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Fira Code';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0dSDqFGedCMX.woff2) format('woff2');unicode-range:U+1F00-1FFF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3tSDqFGedCMX.woff2) format('woff2');unicode-range:U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh09SDqFGedCMX.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3dSDqFGedA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Fira Code';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0NSDqFGedCMX.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Fira Code';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh2dSDqFGedCMX.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Fira Code';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh0dSDqFGedCMX.woff2) format('woff2');unicode-range:U+1F00-1FFF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3tSDqFGedCMX.woff2) format('woff2');unicode-range:U+0370-0377,U+037A-037F,U+0384-038A,U+038C,U+038E-03A1,U+03A3-03FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh09SDqFGedCMX.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Fira Code';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/firacode/v22/uU9NCBsR6Z2vfE9aq3bh3dSDqFGedA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}</style><style data-href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,600;1,700;1,800;1,900&display=swap">@font-face{font-family:'Montserrat';font-style:italic;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq_p9aXw.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:italic;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq3p6aXw.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:italic;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jq0N6aXw.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:italic;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqyR6aXw.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:italic;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUFjIg1_i6t8kCHKm459Wx7xQYXK0vOoz6jqw16aXw.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCs16Ew9.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtr6Ew9.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCtZ6Ew9.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCu170w9.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCuM70w9.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:normal;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvr70w9.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:normal;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUHjIg1_i6t8kCHKm4532VJOt5-QNFgpCvC70w9.woff) format('woff')}@font-face{font-family:'Montserrat';font-style:italic;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxC7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:italic;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRzS7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:italic;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxi7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:italic;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxy7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:italic;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRyS7m0dR9pA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:italic;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxC7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:italic;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRzS7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:italic;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxi7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:italic;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxy7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:italic;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRyS7m0dR9pA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:italic;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxC7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:italic;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRzS7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:italic;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxi7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:italic;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxy7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:italic;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRyS7m0dR9pA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:italic;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxC7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:italic;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRzS7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:italic;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxi7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:italic;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxy7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:italic;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRyS7m0dR9pA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:italic;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxC7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:italic;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRzS7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:italic;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxi7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:italic;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRxy7m0dR9pBOi.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:italic;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUQjIg1_i6t8kCHKm459WxRyS7m0dR9pA.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WRhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459W1hyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WZhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WdhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:normal;font-weight:300;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WRhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459W1hyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WZhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WdhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:normal;font-weight:400;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WRhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459W1hyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WZhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WdhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:normal;font-weight:500;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WRhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459W1hyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WZhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WdhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:normal;font-weight:600;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WRhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459W1hyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WZhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WdhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:normal;font-weight:700;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:normal;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WRhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:normal;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459W1hyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:normal;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WZhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:normal;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WdhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:normal;font-weight:800;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}@font-face{font-family:'Montserrat';font-style:normal;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WRhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0460-052F,U+1C80-1C88,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F}@font-face{font-family:'Montserrat';font-style:normal;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459W1hyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}@font-face{font-family:'Montserrat';font-style:normal;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WZhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0102-0103,U+0110-0111,U+0128-0129,U+0168-0169,U+01A0-01A1,U+01AF-01B0,U+0300-0301,U+0303-0304,U+0308-0309,U+0323,U+0329,U+1EA0-1EF9,U+20AB}@font-face{font-family:'Montserrat';font-style:normal;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WdhyyTh89ZNpQ.woff2) format('woff2');unicode-range:U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}@font-face{font-family:'Montserrat';font-style:normal;font-weight:900;font-display:swap;src:url(https://fonts.gstatic.com/s/montserrat/v26/JTUSjIg1_i6t8kCHKm459WlhyyTh89Y.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}</style></head><body><div id="__next" data-reactroot=""><div><article class="md:w-3/5 text-lg mr-auto ml-auto"><div class="p-14 flex flex-col"><h1 class="text-3xl font-bold text-center">k8s on GCP: a walkthrough</h1><p>Kubernetes has been mainstream for some time already. And everybody seems to have already moved to cloud. At work I had a bit of GCP and that time found devops work pretty cool. This post is a challenge that I went through: setting up Kubernetes on bare VMs.</p><p>It is like a tutorial so you have to read it from top to bottom. And configured k8s cluster is a result. It touches on a lot of things regarding cluster administration and GCP in general. </p><p>But maybe before we dive straight in let&#x27;s see if this work would be useful at all. Below is pros and cons of setting up cluster by yourself versus cluster that is provisioned for you by GCP.</p><table class="m-10 my-3 table-fixed mt-5 border border-black object-center"><thead><tr><th class="w-1/3 bg-black text-white border border-black text-center"><b>Managed</b></th><th class="w-1/3 bg-black text-white border border-black text-center"><b>Unmanaged</b></th></tr></thead><tbody><tr><td class="border border-black text-center">Control plane is fully managed and configuration is impossible or serverly limited</td><td class="border border-black text-center">Full control of control plane configuration any administrative actions can be taken</td></tr><tr><td class="border border-black text-center">Number of worker nodes scales automatically with increase in load</td><td class="border border-black text-center">Manual administrative work is needed to scale</td></tr><tr><td class="border border-black text-center">Nodes limited to running on OS images given by cloud provider</td><td class="border border-black text-center">Possiblity to bake your own OS images</td></tr><tr><td class="border border-black text-center">Nodes run on VMs which state is completely hidden from devops</td><td class="border border-black text-center">Full control over nodes&#x27; VMs</td></tr><tr><td class="border border-black text-center">Integrated logging and monitoring</td><td class="border border-black text-center">Manual setup of logging and monitoring</td></tr><tr><td class="border border-black text-center">Filesystem not persistent over restarts</td><td class="border border-black text-center">Possiblity to backup and setup persistent storage</td></tr><tr><td class="border border-black text-center">Automatic upgrades and autohealing</td><td class="border border-black text-center">Manual maintanance of individual nodes or custom automation</td></tr><tr><td class="border border-black text-center">Authorization and Authentication by Google IAM</td><td class="border border-black text-center">Authorization and Authentication by bring your own certificates, passwords, proxies</td></tr></tbody></table><h2 class="text-2xl pt-14 font-bold">Architecture design</h2><p>Before laying out the components it&#x27;s good to know what purpose our cluster will serve. These are the <b>constraints</b>:</p><ul class="px-5 py-2 list-disc"><li>if one physical location fails this shouldn&#x27;t affect both control plane and workers</li><li>workloads are small and only for demonstration purposes</li><li>setup should be maximally simple</li></ul><p>There are <a href="https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/high-availability/"><b>2 approaches</b></a> to setup control plane: one colocates etcd instances with other Kubernetes components (easier), other externalizes etcd to separate cluster (harder). Google Cloud Platform for most of the resources offers at most regional resiliency. Zone are servers in one building in some city of your choosing and region is couple of such buildings in this city. Global resiliency is achieved by having clusters of resources duplicated on each continent, with switching clients to the closest cluster available. It&#x27;s because latencies across continents are simply to big to have cluster distributed around the world.</p><p> Let&#x27;s have three control plane nodes in regional configuration: each in separate zone. And workloads are small so 3 workers is more than enough. This way <b>high availability</b> will be achieved at minimal cost. Control plane will be side by side with etcd to omit separate etcd cluster setup. Like in this diagram:</p><figure class="md:px-20 py-8"><img alt="High availability cluster" src="/drawing-3.svg" width="90%" height="90%"/><figcaption class="font-bold text-center pt-5">High availability cluster</figcaption></figure><h2 class="text-2xl pt-14 py-8 font-bold">Setup and tools</h2><p>This is a lot of work and some time ago it had to be done manually. These days however <a href="https://en.wikipedia.org/wiki/Infrastructure_as_code"><b>infrastracture as code</b></a> is taking over the world. You maintain declarative definition and automation tools handle creation, deletion and updates of needed resources. By now, the most popular tool is <a href="https://www.terraform.io/"><b>Terraform</b></a> and I used it in this post.</p><p>To start coding Terraform scripts you need to setup couple of GCP related things:</p><ul class="px-7 list-disc"><li>create GCP project and enable billing</li><li>enable Compute API from the Console</li><li>download and install gcloud SDK</li><li>create service account with editor permissions and download the key</li><li>install Terraform</li></ul><h2 class="text-2xl pt-14 font-bold">Terraform providers and utilities</h2><p class=""> Terraform structures project as a <a href="https://www.terraform.io/docs/language/modules/develop/structure.html"><b>folder</b></a> with script and data files. All of Terraform code goes to <i>main.tf</i> file. You can extract variables to <i>variables.tf</i> file, but I won&#x27;t use that feature as the script will be really simple. In script file you define resources which you want to setup (not only) on the cloud. Running the script triggers build of <b>Resource Graph</b>: dependencies are ordered and non-dependant resources are free to be provisioned in parallel. Before actual actions happen Terraform displays <b>Execution Plan</b> that lists all the operations to be done. Steps already finished and resource modifications are persisted in special file <i>tfstate</i> so that only incremental changes are applied. Once you are happy with the script you run <code>terraform apply</code> to provision infrastructure or <code>terraform destroy</code> to tear it down. This is the first part of <code>main.tf</code>:</p><pre class="mt-3 p-5"><code class="language-terraform">
+terraform {                                          // 1
+  required_providers {
+    google = {
+      source = &quot;hashicorp/google&quot;
+      version = &quot;3.5.0&quot;
+    }
+  }
+}
+
+provider &quot;google&quot; {                                 // 2
+  credentials = file(&quot;service-account-key.json&quot;)
+
+  project = &quot;dg-kubernetes-2&quot;
+  region  = &quot;europe-west3&quot;
+  zone    = &quot;europe-west3-a&quot;
+}
+
+provider &quot;google-beta&quot; {                            // 3
+  credentials = file(&quot;service-account-key.json&quot;)
+
+  project = &quot;dg-kubernetes-2&quot;
+  region  = &quot;europe-west3&quot;
+  zone    = &quot;europe-west3-a&quot;
+}
+
+locals {                                            // 4
+  control_ips = [&quot;10.1.0.10&quot;, &quot;10.1.0.11&quot;, &quot;10.1.0.12&quot;]
+  worker_ips = [&quot;10.1.0.13&quot;, &quot;10.1.0.14&quot;, &quot;10.1.0.15&quot;]
+  control_zones = [&quot;europe-west3-a&quot;,&quot;europe-west3-b&quot;,&quot;europe-west3-c&quot;]
+  worker_zones = [&quot;europe-west3-a&quot;,&quot;europe-west3-b&quot;,&quot;europe-west3-c&quot;]
+}
+</code></pre><ul class="px-8 list-decimal"><li>Terraform interacts with the cloud and servers by <a href="https://www.terraform.io/docs/language/providers/index.html"><b>plugins called providers</b></a>. This block shows which providers are required in the script.</li><li>This is the configuration of provider. Similar to gcloud SDK, plugin requires project, region and zone labels. Next, GCP Service Account&#x27;s JSON key (put in our project directory) contents are read.</li><li>GCP provider has couple of resources in beta stage and they reside in separate plugin. It is configured the same way.</li><li>Terraform allows to keep local variables in one place.</li></ul><h2 class="text-2xl pt-14 font-bold">Configuring VPC network</h2><p> Kubernetes cluster requires <a href="https://docs.aws.amazon.com/eks/latest/userguide/pod-networking.html"><b>two network interfaces</b></a>. First one serves communication on control plane, but second is for virtual, inside-kubernetes network and assigns each pod unique IP only inside cluster. We can configure it in two ways. An <a href="https://cloud.google.com/vpc/docs/alias-ip"><b>Alias IP</b></a> is a secondary interface for each VM that fits this use case nicely. Or second option is to enable VMs to forward misrouted packets to each other. Google Cloud Platform&#x27;s VPC Network is a global resource. It is built from Subnets that are scoped to region. They are basically IP ranges from which you can assign individual IPs to Virtual Machines (inside the given region). Yet thats not everything - you also have to enable receiving or sending traffic by security rules either by Routes or Firewall Rules.  <a href="https://cloud.google.com/vpc/docs/routes"><b>Routes</b></a> deal with outbound traffic from VMs. <a href="https://cloud.google.com/vpc/docs/firewalls"><b>Firewall Rules</b></a> enable/disable inter-VM traffic.</p><p>We configure VMs to have IPs from single subnet. Next inter-VM traffic by TCP, UDP and ICMP is enabled. Both ranges primary and inside kubernetes are taken into account. Kubernetes <b>API Server</b> talks to <b>kubectl</b> on TCP 6443, so traffic from default gateway (0.0.0.0) on this port has also to be enabled. This gives following piece of code:</p><pre class="mt-3 p-5"><code class="language-terraform">
+resource &quot;google_compute_network&quot; &quot;vpc_network&quot; {         
+  name = &quot;kubernetes-network&quot;
+}
+
+resource &quot;google_compute_subnetwork&quot; &quot;vpc_subnet&quot; {       
+  name          = &quot;kubernetes-subnet&quot;
+  ip_cidr_range = &quot;10.1.0.0/24&quot;
+  region        = &quot;europe-west3&quot;
+  network       = google_compute_network.vpc_network.id
+}
+
+resource &quot;google_compute_firewall&quot; &quot;fr_internal&quot; {        // 1
+  name    = &quot;kubernetes-fr-internal&quot;
+  network = google_compute_network.vpc_network.name
+
+  allow {
+    protocol = &quot;icmp&quot;
+  }
+
+  allow {
+      protocol = &quot;tcp&quot;
+  }
+
+  allow {
+      protocol = &quot;udp&quot;
+  }
+
+  
+  source_ranges = [ &quot;10.1.0.0/24&quot;, &quot;10.2.0.0/16&quot; ]
+}
+
+resource &quot;google_compute_firewall&quot; &quot;fr_external&quot; {        // 2
+  name    = &quot;kubernetes-fr-external&quot;
+  network = google_compute_network.vpc_network.name
+
+
+  allow {
+    protocol = &quot;icmp&quot;
+  }
+
+  allow {
+      protocol = &quot;tcp&quot;
+      ports = [ &quot;22&quot; , &quot;6443&quot; ]
+  }
+
+  source_ranges = [&quot;0.0.0.0/0&quot;]
+}
+
+resource &quot;google_compute_firewall&quot; &quot;fr_external2&quot; {       // 3
+  name    = &quot;kubernetes-fr-external2&quot;
+  network = google_compute_network.vpc_network.name
+  direction = &quot;EGRESS&quot;
+
+  allow {
+      protocol = &quot;tcp&quot;
+      ports = [&quot;6443&quot; ]
+  }
+
+  destination_ranges = [&quot;0.0.0.0/0&quot;]
+}
+</code></pre><ul class="px-14 list-decimal"><li>This part enables inter-VM communication. </li><li>We have to enable HTTPS for kubectl and SSH to log into machine.</li><li>Required for health checks, more on this later.</li></ul><h2 class="text-2xl pt-14 font-bold">Configuring Virtual Machines on GCP</h2><p>The essence of the cluster are of course Virtual Machines. They are virtualized computing resources with configurable number of vCPUs (machine type). They are scoped to single zones. Any VM has primary hard drive called <b>boot disk</b> on which there is operating system present. Each cloud provider maintains range of OS images, both Windows and Linux from which you can init this disk. Each VM has also IP on its primary network interface.</p><p>Continuing configuration  minimal number resources used by VMs is set up. Similar, but not the same are definitions of control plane and worker instances. Kubernetes has to be installed on each machine separately. To save yourself some work there is possilibity to run common script on init of machine by <b>metascript</b>.</p><pre class="mt-3 p-5"><code class="language-terraform">
+resource &quot;google_compute_instance&quot; &quot;control_plane_instances&quot; {        // 1
+  name         = &quot;control-plane-instance${count.index}&quot;
+  machine_type = &quot;e2-standard-2&quot;
+  zone = local.control_zones[count.index]
+  count = 3                                                           // 2
+
+  boot_disk {                                                         // 3
+    initialize_params {
+      image = &quot;ubuntu-os-cloud/ubuntu-1804-lts&quot;
+      size = 128
+    }
+  }
+
+  network_interface {                                                 // 4
+    network = google_compute_network.vpc_network.name
+    subnetwork = google_compute_subnetwork.vpc_subnet.name
+    network_ip = local.control_ips[count.index]
+    access_config {
+    }
+  }
+
+  can_ip_forward = true                                               // 5
+
+  metadata_startup_script = &quot;${file(&quot;init.sh&quot;)}&quot;                      // 6
+}
+
+resource &quot;google_compute_instance&quot; &quot;worker_instances&quot; {               // 7
+  name         = &quot;worker-instance${count.index}&quot;
+  machine_type = &quot;e2-standard-2&quot;
+  zone = local.worker_zones[count.index]
+  count = 3
+
+  boot_disk {
+    initialize_params {
+      image = &quot;ubuntu-os-cloud/ubuntu-1804-lts&quot;
+      size = 128
+    }
+  }
+
+  network_interface {
+    network = google_compute_network.vpc_network.name
+    subnetwork = google_compute_subnetwork.vpc_subnet.name
+    network_ip = local.worker_ips[count.index]
+    access_config {
+    }
+  }
+
+  can_ip_forward = true
+
+  metadata_startup_script = &quot;${file(&quot;init.sh&quot;)}&quot;
+}
+}
+</code></pre><ul class="px-14 list-decimal"><li>The block provides configuration for control plane instances.</li><li><code>count</code> is a special attribute in Terraform - it triggers a loop in which enclosing block is repeated. Iterated values are substituted by <code>count.index</code>. Recall that we declared array of IPs in subnet range for control plane. Now they are filled in network section.</li><li>Boot disk initial parameters.</li><li>VMs connect to network and subnet created earlier.</li><li>Very important, it allows VMs to forward packets to other VMs, allowing Kuberenetes nested network to function.</li><li>Pre-provisioning script to run on VMs boot.</li><li>Similar configuration is for worker nodes with couple of exceptions.</li></ul><p>Since OS is linux distribution, provisioning script is just bash script. The contents of <code>init.sh</code> are:</p><pre class="mt-3 p-5"><code class="language-shell">
+sudo apt-get update
+
+sudo apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg \
+https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+echo   &quot;deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg]  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable&quot; | \
+  sudo tee /etc/apt/sources.list.d/docker.list &gt; /dev/null
+
+echo &quot;deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main&quot; | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt-get update
+
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io kubelet kubeadm kubectl
+
+sudo apt-mark hold kubelet kubeadm kubectl
+</code></pre><p>This script installs docker (running containers), kubelets (network proxy for Kubernetes) and kubeadm (administration tool).</p><h2 class="text-2xl pt-14 font-bold">GCP load balancer</h2><p>In this section frontend for control plane is configured. If you remember there are three control plane nodes listening on port 6443 for connection from kubectl. Google Cloud Platform provides load balancer, but to connect it to VMs they have to be wrapped in <b>Instance Groups</b>. Moreover <b>Health Check</b> needs to be configured to constantly ping those VMs. On failed pings from VM, load balancer will redirect traffic to healthy ones. Kubernetes operates in TCP/IP layer, so external TCP load balancer has to be configured (as opposed to HTTP/HTTPS load balancer).</p><pre class="mt-3 p-5"><code class="language-terraform">
+resource &quot;google_compute_instance_group&quot; &quot;control_plane_igs&quot; {                          // 1
+  name        = &quot;control-plane-instance-group${count.index}&quot;
+  count = 3
+  zone = local.control_zones[count.index]
+
+  named_port {
+    port = 6443
+    name = &quot;control&quot;
+  }
+ 
+  instances = [google_compute_instance.control_plane_instances[count.index].self_link]
+}
+
+resource &quot;google_compute_region_backend_service&quot; &quot;control_plane_backend&quot; {            // 2
+  region = &quot;europe-west3&quot;
+  name      = &quot;control-plane-backend&quot;
+  protocol  = &quot;TCP&quot;
+  provider = google-beta
+
+  backend {
+    group = google_compute_instance_group.control_plane_igs[0].id
+  }
+  
+  backend {
+    group = google_compute_instance_group.control_plane_igs[1].id
+    
+  }
+
+   backend {
+    group = google_compute_instance_group.control_plane_igs[2].id
+    
+  }
+
+  port_name = &quot;control&quot;
+
+  health_checks = [
+    google_compute_region_health_check.tcp_health_check.id
+  ]
+
+  load_balancing_scheme = &quot;EXTERNAL&quot;
+}
+
+resource &quot;google_compute_region_health_check&quot; &quot;tcp_health_check&quot; {                // 3
+  name     = &quot;tcp-region-health-check&quot;
+
+  timeout_sec        = 1
+  check_interval_sec = 1
+
+  tcp_health_check {
+    port = &quot;6443&quot;
+  }
+}
+
+resource &quot;google_compute_forwarding_rule&quot; &quot;default&quot; {                             // 4
+  name                  = &quot;control-plane-forwarding-rule&quot;
+  region                = &quot;europe-west3&quot;
+  port_range            = 6443
+  backend_service       = google_compute_region_backend_service.control_plane_backend.id
+  
+  load_balancing_scheme = &quot;EXTERNAL&quot;
+  provider = google-beta
+}
+
+</code></pre><ul class="px-14 list-decimal"><li>To connect VMs to backend instance groups need to be created. Here each has only one VM.</li><li>Load balancer connects traffic to <b>backends</b>, each of them points to Instance Group. </li><li>Health check.</li><li>Finally load balancer is defined.</li></ul><p>At this point you run <code>terraform apply</code> and wait until completion. After completion write down load balancer&#x27;s external address from <code>terraform.tfstate</code></p><h2 class="text-2xl pt-14 font-bold">Provisioning with kubeadm</h2><p>Now the infrastructure is ready on Google Cloud Platform. Some manual work is required to form a cluster, install pod network and setup connection for admin. <b>Important! Two control plane nodes must be disabled temporarily to not confuse load balancer while setting up control plane. This can be done from the GCP console.</b>  Lets log in by SSH into on VM.</p><pre class="p-5 my-2"><code class="language-shell">
+gcloud config set compute/region europe-west3
+gcloud config set compute/zone europe-west3-a
+gcloud compute ssh control-plane-instance0
+</code></pre><p>...and init kubernetes control plane node:</p><pre class="p-5 my-2"><code class="language-shell">
+sudo kubeadm init --control-plane-endpoint=&lt;lb ip&gt;:6443 \
+  --pod-network-cidr=10.2.0.0/16 --upload-certs
+</code></pre><p>It begs for some explanation: we allowed second CIDR range in firewall. Now it is provided to kubeadm to form cluster connectivity. Then external IP for cluster needs to be specified (or DNS entry). Upload certs flag makes sure new control plane nodes receive certificate. This certificate is signed for all control plane nodes and load balancer&#x27;s IP. The long output provides command we have to run on other two nodes.</p><pre class="p-5 my-2"><code class="language-shell">
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Alternatively, if you are the root user, you can run:
+
+  export KUBECONFIG=/etc/kubernetes/admin.conf
+
+You should now deploy a pod network to the cluster.
+Run &quot;kubectl apply -f [podnetwork].yaml&quot; with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+You can now join any number of the control-plane node running 
+the following command on each as root:
+
+  kubeadm join 34.107.71.115:6443 --token 66mohe.71so638ousw8lh96 \
+        --discovery-token-ca-cert-hash \
+        sha256:c8292bb6bc99cc151d11a0c5c7d463b579990098f0d4d41f0263610f7f92f07f \
+        --control-plane --certificate-key \
+        4a6a19f2f3fac9846f9a5b20e7813640ad628739e68c09f67f1dd6733563c129
+
+Please note that the certificate-key gives access to cluster sensitive data, keep it secret!
+As a safeguard, uploaded-certs will be deleted in two hours; If necessary, you can use
+&quot;kubeadm init phase upload-certs --upload-certs&quot; to reload certs afterward.
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 34.107.71.115:6443 --token 66mohe.71so638ousw8lh96 \
+        --discovery-token-ca-cert-hash \
+        sha256:c8292bb6bc99cc151d11a0c5c7d463b579990098f0d4d41f0263610f7f92f07f
+</code></pre><p>We continue an join other 2 nodes. Lastly we join 3 worker nodes by other command from the above output. Then pod network needs to be installed, by downloading <code>Calico</code> (or any other) pod network controller.</p><pre class="p-5 my-2"><code class="language-shell">
+curl https://docs.projectcalico.org/manifests/calico.yaml -O
+</code></pre><p>In given YAML file default <code>196.168.0.0/16</code> CIDR range has to be substituted to our secondary range. Then we are free to apply operator in kubernetes: <code>kubectl apply -f calico.yaml</code>. When we list the nodes  (<code>kubectl get nodes</code>) there should be status visible that they are ready.</p><p>The last step is providing admin an access to the control plane. He will use his custom made certificate. First we create Certificate Signing Request on local computer:</p><pre class="p-5 my-2"><code class="language-shell">
+mkdir keys
+openssl genrsa -out keys/admin.key 2048
+openssl req -new -key keys/admin.key \
+-out keys/admin.csr -subj &quot;/CN=admin/O=devops&quot;
+</code></pre><p>Next we copy it to first control plane node:</p><pre class="p-5 my-2"><code class="language-shell">
+gcloud compute scp admin.csr control-plane-instance0:~/admin.csr
+</code></pre><p>Next we login to first VM and sign certificate.</p><pre class="p-5 my-2"><code class="language-shell">
+openssl x509 -req \
+-in ~/admin.csr \
+-CA /etc/kubernetes/pki/ca.crt \
+-CAkey/etc/kubernetes/pki/ca.key \
+-CAcreateserial \
+-out ~/admin.crt \
+-days 365
+</code></pre><p>... and copy back <code>ca.crt</code> and <code>admin.crt</code> to (admin&#x27;s) computer</p><pre class="p-5 my-2"><code class="language-shell">
+gcloud compute scp control-plane-instance0:~/dgawlik.crt .
+gcloud compute scp control-plane-instance0:/etc/kubernetes/pki/ca.crt .
+</code></pre><p>The admin (on his machine) has to create new kubeconfig. Remember to fill in load balancer&#x27;s external IP.</p><pre class="p-5 my-2"><code class="language-shell">
+kubectl config set-cluster admin --certificate-authority ca.crt --server &lt;LB IP&gt;
+
+kubectl config set-credentials admin --client-certificate admin.crt --client-key admin.key
+
+kubectl config set-context admin --cluster admin --user admin
+
+kubectl config use-context admin
+</code></pre><p>At this step admin is able to connect to kubernetes without facing network timeouts. He can&#x27;t do anything in cluster, however, because default kubernetes policy is to deny every action. It&#x27;s time to fix that. Logging in to first VM again:</p><pre class="p-5 my-2"><code class="language-shell">
+kubectl create rolebinding kube-admin --clusterrole admin --user admin --namespace default
+</code></pre><p>We have given admin pretty serious privileges. At this point cluster is fully operating and admin has access to control plane. This concludes the post.</p></div></article></div></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{}},"page":"/posts/unmanaged-kubernetes-clusters","query":{},"buildId":"kIHyjbkeyiubHYJDX2tlA","nextExport":true,"autoExport":true,"isFallback":false,"scriptLoader":[]}</script></body></html>
