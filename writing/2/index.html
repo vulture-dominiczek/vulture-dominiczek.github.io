@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <title>Dominik Gawlik's Personal Page</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
+    <link href="/css/code_theme.css" rel="stylesheet">
+    <style>
+        a {
+            color: black;
+            cursor: pointer;
+        }
+        .date {
+            font-size: 1.2rem;
+            color: gray;
+            font-style: italics;
+        }
+        .topic {
+            font-size: 1.6rem;
+            color: black;
+            font-style: underline;
+        }
+        li {
+            list-style-type: '>';
+            padding-inline-start: 1ch;
+        }
+        h1 {
+            display: inline;
+            line-height: 20px;
+        }
+        body {
+            font-size: 1.3rem;
+        }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color: #dddddd; font-family: 'Noto Serif', serif;">
+    <div style="padding: 5rem; width: 60%; background-color: #fafafa;  margin-left: auto; margin-right: auto; box-shadow: 0px 0px 40px black;">
+        <h1>Importance of application topology graphs</h1>
+<p>Recently I watched the <a href="https://www.youtube.com/watch?v=gaG77PiYv5w">presentation</a> from Microsoft about <a href="https://radapp.io/">Radius</a>. They developed the tool to foster the collaboration between devops and developers.
+In nutshell devops create "recipies" in Bicep or Terraform and developers use them to deploy
+the application. Seems cool.</p>
+<p>However this is not the topic for this article. They mentioned the idea that instantly clicked
+in my head. That is - we waste so much of our time when interacting with kubernetes. Imagine you want to learn why app is not working and you know that it depends on "downstream" app. So you start with the deployment, it's fine, then you go to the code and find out the k8s service name that it's using. Then by labels or simply by name you find the dependent deployment that is failing. So we had 3 context switches. What about the dependencies that are &gt; 2 links deep?</p>
+<p>Exactly this is just too much work. There is a better way to handle things. We draw graph where deployments are nodes and edges are dependencies. This was briefly mentioned in the presentation however it was not main topic. But the concept is not new. Openshift as much as
+I was able to reasearch had it 5 years ago already.</p>
+<h2>Topology view in OpenShift</h2>
+<p>One picture worth thousand of words:</p>
+<p><img src="/assets/scshot-1.png" width="100%"></p>
+<p>What if the postres went down? Then it would look like this:</p>
+<p><img src="/assets/scshot-2.png"></p>
+<p>I mean not exactly, it would be rounded in red circle, but you get the picture. You can instantly see.</p>
+<p>What is more you can view its code with Eclipse Che by deploying own workspace. Committing changes with git is whole different story...</p>
+<h4>What's under the hood</h4>
+<p>I clicked away all this in OpenShift but the real use case would be deploying apps with helm. So how is it done?</p>
+<p>As it turns out these are just plain labels and annotations.</p>
+<p>First the simple stuff:</p>
+<p><img src="/assets/scshot-3.png"></p>
+<p><strong>&gt; How would you get the "Go" picture?</strong> Very simple:</p>
+<pre class="language-none" tabindex="0"><code class="language-none">kubectl label deployments go-basic app.openshift.io/runtime=golang
+</code></pre>
+<p><strong>&gt; How would you group applications together?</strong></p>
+<p><img src="/assets/scshot-4.png"></p>
+<pre class="language-none" tabindex="0"><code class="language-none">kubectl label deployments go-basic app.kubernetes.io/part-of=sample-app
+kubectl label deployments frontend app.kubernetes.io/part-of=sample-app
+</code></pre>
+<p><strong>&gt; How would you get the dependency-arrows?</strong></p>
+<pre class="language-none" tabindex="0"><code class="language-none">kubectl annotate deployments frontend 'app.openshift.io/connects-to=[{"apiVersion":"apps/v1","kind":"Deployment","name":"go-basic"}]'
+</code></pre>
+<p>So there is no magic here. These are just plain labels and annotations and the beauty is
+that they don't even interfere with your workflow.</p>
+<h2>Kubernetes standard labels/annotations</h2>
+<p>I could not get away without mentioning <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/common-labels/">this</a> resource. Somehow this overlaps with OpenShift but not quite.</p>
+<blockquote>
+<p><strong>app.kubernetes.io/name</strong></p>
+</blockquote>
+<p>This is the name of the application</p>
+<blockquote>
+<p><strong>app.kubernetes.io/instance</strong></p>
+</blockquote>
+<p>This is the name of the replica/instance in case you have many applications. You can think of it as blueprint - object pattern.</p>
+<blockquote>
+<p><strong>app.kubernetes.io/version</strong></p>
+</blockquote>
+<p>No explanation needed</p>
+<blockquote>
+<p><strong>app.kubernetes.io/component</strong></p>
+</blockquote>
+<p>Not sure what this does, but probably some categorization backend versus frontend.</p>
+<blockquote>
+<p><strong>app.kubernetes.io/part-of</strong></p>
+</blockquote>
+<p>We have seen it that it groups apps in OpenShift.</p>
+<blockquote>
+<p><strong>app.kubernetes.io/managed-by</strong></p>
+</blockquote>
+<p>I would recommend avoiding it, as it interferes with OpenShift topology rendering.</p>
+<h2>Conclusion</h2>
+<p>What you could do in couple of minutes, you can do in seconds. Viewing graphs instead of
+list of resources enables you to debug the system faster and hassle free.</p>
+
+    <div>
+  
+</div></div></body></html>

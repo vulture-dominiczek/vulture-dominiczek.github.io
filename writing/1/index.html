@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <title>Dominik Gawlik's Personal Page</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
+    <link href="/css/code_theme.css" rel="stylesheet">
+    <style>
+        a {
+            color: black;
+            cursor: pointer;
+        }
+        .date {
+            font-size: 1.2rem;
+            color: gray;
+            font-style: italics;
+        }
+        .topic {
+            font-size: 1.6rem;
+            color: black;
+            font-style: underline;
+        }
+        li {
+            list-style-type: '>';
+            padding-inline-start: 1ch;
+        }
+        h1 {
+            display: inline;
+            line-height: 20px;
+        }
+        body {
+            font-size: 1.3rem;
+        }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color: #dddddd; font-family: 'Noto Serif', serif;">
+    <div style="padding: 5rem; width: 60%; background-color: #fafafa;  margin-left: auto; margin-right: auto; box-shadow: 0px 0px 40px black;">
+        <h1>Writing own Kubernetes Operator in Java</h1>
+<br>
+<br>
+<p>Operators introduced by <a href="https://www.redhat.com/en/blog/introducing-operators-putting-operational-knowledge-into-software">CoreOS</a> in 2016 are now
+considered early majority on <a href="https://userpilot.com/blog/categories-of-adopters/">Categories of Adopters</a> scale.</p>
+<p>It means that the technology is becoming pretty mainstream. They use Kubernetes Server API to enforce
+some operational patterns for a deployment of application. This way application developers
+can translate the "domain" knowledge to Kubernetes land.</p>
+<p>I experimented with them lately, but not enough skills of Go discouraged me at first. But
+then I realised that I can try to write an Operator in my "mother tonque" - Java. In this
+post I will share couple of reflections on the topic.</p>
+<p><strong>TLDR</strong> Here is the <a href="https://github.com/dgawlik/operator-hello-world">hello world</a> I wrote.</p>
+<h2>Anatomy of an Operator</h2>
+<p>First and most important of all, <a href="https://kubernetes.io/docs/concepts/extend-kubernetes/operator/">Operator</a> is an extension to Kubernetes. The core idea is
+to capture what <em>human operator/admin</em> would normally do and encode it in software.</p>
+<p>At some point when Kubernetes was adopted by more and more users
+there occured an obvious need to extend it's API. A <em>resource</em> in Kubernetes is
+an endpoint that groups several API objects. That is for example <em>pods</em> resource groups
+pods and allows actions like <em>get</em>, <em>delete</em>, <em>patch</em> and so on to be acted on them.</p>
+<p>But operators are extension to the system so there must be a way to represent their
+objectives Kubernetes (declarative) proper way. And there is - <a href="https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/">Custom Resources</a>.</p>
+<p>Whenever you write a new Operator, you will want to create custom resource for it. As soon
+as you register your custom resouce in Kubernetes it will start to serve it from API Server
+and all actions like <em>get</em>, <em>delete</em> and others will be available. And then your Operator
+will monitor this new resource and take appropirate actions when desired.</p>
+<h4>Control Loop</h4>
+<p>Demystification no. 1 is that Operators are nothing new. Kubernetes is driven internally
+by <a href="https://kubernetes.io/docs/concepts/architecture/controller/">Controllers</a>. From the
+definition they implement <em>control loop</em>.</p>
+<p>Funny thing, the term is actually taken from robotics and it is <em>nonterminating loop that corrects the state of the system</em>. What does it mean? For example one simple controller could
+watch that the certain pod is present in system all the times. Whenever it detects that pod is
+down it will take steps to restart it and correct the "glitch".</p>
+<p>Now, operators are basically the same thing, but as a form of extension. Kubernetes is very
+permissive when it comes to it's API. So as long as you can reach the Server API (and have
+rights) then you can do any thing with it. So here is the thing -- operator is a <strong>custom controller</strong>. But: when it boils down to it's core -- <strong>it's just a pod!</strong> Like any other.
+I mean you will probably want to add replication, leader election and so on, but this is still a piece of software with an access to Kubernetes API.</p>
+<p><img src="https://help.ovhcloud.com/public_cloud-containers_orchestration-managed_kubernetes-installing-go-operator-images-operator.png" style="margin: 40px 20px" width="100%"></p>
+<p>To sum up: operator watches events from the server (it can), or reads the status of current resources and matches that with whats specified in CRD. If there is a mismatch it does <em>reconcillation</em>. This is just another term for control loop. But outside Kubernetes core API.</p>
+<h2>Kubernetes Client in Java</h2>
+<p>Go to solution when dealing in Kubernetes in Java is <a href="https://github.com/fabric8io/kubernetes-client">Fabric8 client</a>. You also want to watch <a href="https://www.youtube.com/watch?v=CvftaV-xrB4">this</a> presentation.</p>
+<p>You init the client very easily:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token class-name">KubernetesClient</span> client <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">KubernetesClientBuilder</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">build</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<p>And then there is a matter of reading the api and ivoking appropirate methods:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">var</span> currentServingDeploymentNullable <span class="token operator">=</span> client<span class="token punctuation">.</span><span class="token function">apps</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">deployments</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">inNamespace</span><span class="token punctuation">(</span><span class="token string">"default"</span><span class="token punctuation">)</span>
+                    <span class="token punctuation">.</span><span class="token function">withName</span><span class="token punctuation">(</span><span class="token string">"web-serving-app-deployment"</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token keyword">var</span> currentServingDeployment <span class="token operator">=</span> <span class="token class-name">Optional</span><span class="token punctuation">.</span><span class="token function">ofNullable</span><span class="token punctuation">(</span>currentServingDeploymentNullable<span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<h4>Informers</h4>
+<p>So, the basic idea is to forever run the control loop, sleep couple of seconds and do everthing again. But this is not the best way to do this. Ideally you would want to only
+do work when something changes. Actually you can do this easily as well.</p>
+<p>Kubernetes has a notion of <em>informers</em>. These are WebSocket connections-subscriptions to
+changes of particular resources. So for example, you could watch all the pods in the namespace for changes and get informed when <strong>anything</strong> changes at all.</p>
+<p>This leads to following solution - in the end of reconcillation block on the monitor:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token class-name">Object</span> changes <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">Object</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span>
+<span class="token keyword">synchronized</span> <span class="token punctuation">(</span>changes<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    changes<span class="token punctuation">.</span><span class="token function">wait</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>Whenever something changes our informer will let us unblock the control loop:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">var</span> handler <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">GenericResourceEventHandler</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span>update <span class="token operator">-&gt;</span> <span class="token punctuation">{</span>
+    <span class="token keyword">synchronized</span> <span class="token punctuation">(</span>changes<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        changes<span class="token punctuation">.</span><span class="token function">notifyAll</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+crdClient<span class="token punctuation">.</span><span class="token function">inform</span><span class="token punctuation">(</span>handler<span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">start</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</code></pre>
+<p>The Callback is a little bit bloated so I abstracted it away like so:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">GenericResourceEventHandler</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">T</span><span class="token punctuation">&gt;</span></span> <span class="token keyword">implements</span> <span class="token class-name">ResourceEventHandler</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">T</span><span class="token punctuation">&gt;</span></span> <span class="token punctuation">{</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">final</span> <span class="token class-name">Consumer</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">T</span><span class="token punctuation">&gt;</span></span> handler<span class="token punctuation">;</span>
+
+    <span class="token keyword">public</span> <span class="token class-name">GenericResourceEventHandler</span><span class="token punctuation">(</span><span class="token class-name">Consumer</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">T</span><span class="token punctuation">&gt;</span></span> handler<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>handler <span class="token operator">=</span> handler<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">onAdd</span><span class="token punctuation">(</span><span class="token class-name">T</span> obj<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>handler<span class="token punctuation">.</span><span class="token function">accept</span><span class="token punctuation">(</span>obj<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">onUpdate</span><span class="token punctuation">(</span><span class="token class-name">T</span> oldObj<span class="token punctuation">,</span> <span class="token class-name">T</span> newObj<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>handler<span class="token punctuation">.</span><span class="token function">accept</span><span class="token punctuation">(</span>newObj<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token keyword">void</span> <span class="token function">onDelete</span><span class="token punctuation">(</span><span class="token class-name">T</span> obj<span class="token punctuation">,</span> <span class="token keyword">boolean</span> deletedFinalStateUnknown<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>handler<span class="token punctuation">.</span><span class="token function">accept</span><span class="token punctuation">(</span><span class="token keyword">null</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<h4>Deployment</h4>
+<p>So when you are done with the implementation you will probably want to deploy the operator...
+I wrote it as the Spring Boot application and some interesting stuff happened on the way.</p>
+<p><strong>Tip 1</strong></p>
+<p>You will want to have a private repository, and I chose GHCR. You can set it up and download the passcode. Then create secret for kubernetes:</p>
+<pre class="language-bash" tabindex="0"><code class="language-bash">kubectl create secret docker-registry regcred <span class="token punctuation">\</span>
+  --docker-server<span class="token operator">=</span>ghcr.io <span class="token punctuation">\</span>
+  --docker-username<span class="token operator">=</span>dgawlik <span class="token punctuation">\</span>
+  --docker-password<span class="token operator">=</span><span class="token variable">$GITHUB_TOKEN</span>
+</code></pre>
+<p><strong>Tip 2</strong></p>
+<p>You have to create CRD of course. Actually fabric8 client got you covered:</p>
+<pre class="language-none" tabindex="0"><code class="language-none"> &lt;dependency&gt;
+    &lt;groupId&gt;io.fabric8&lt;/groupId&gt;
+    &lt;artifactId&gt;kubernetes-client&lt;/artifactId&gt;
+    &lt;version&gt;6.13.4&lt;/version&gt;
+&lt;/dependency&gt;
+&lt;dependency&gt;
+    &lt;groupId&gt;io.fabric8&lt;/groupId&gt;
+    &lt;artifactId&gt;crd-generator-apt&lt;/artifactId&gt;
+    &lt;version&gt;6.13.4&lt;/version&gt;
+    &lt;scope&gt;provided&lt;/scope&gt;
+&lt;/dependency&gt;
+</code></pre>
+<p>Whenever you create CRD classes it will generate the CRD manifest so you can kubectl apply it. So for example:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token annotation punctuation">@Group</span><span class="token punctuation">(</span><span class="token string">"com.github.webserving"</span><span class="token punctuation">)</span>
+<span class="token annotation punctuation">@Version</span><span class="token punctuation">(</span><span class="token string">"v1alpha1"</span><span class="token punctuation">)</span>
+<span class="token annotation punctuation">@ShortNames</span><span class="token punctuation">(</span><span class="token string">"websrv"</span><span class="token punctuation">)</span>
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">WebServingResource</span> <span class="token keyword">extends</span> <span class="token class-name">CustomResource</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">WebServingSpec</span><span class="token punctuation">,</span> <span class="token class-name">WebServingStatus</span><span class="token punctuation">&gt;</span></span> <span class="token keyword">implements</span> <span class="token class-name">Namespaced</span> <span class="token punctuation">{</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">public</span> <span class="token keyword">record</span> <span class="token class-name">WebServingSpec</span><span class="token punctuation">(</span><span class="token class-name">String</span> page1<span class="token punctuation">,</span> <span class="token class-name">String</span> page2<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">public</span> <span class="token keyword">record</span> <span class="token class-name">WebServingStatus</span> <span class="token punctuation">(</span><span class="token class-name">String</span> status<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p><strong>Tip 3</strong></p>
+<p>You will want to create native images with GraalVm to speed things up. If you don't have a lot
+of memory then you can tradeoff the quality of binary for building time/resources.</p>
+<pre class="language-none" tabindex="0"><code class="language-none">&lt;build&gt;
+    &lt;plugins&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.graalvm.buildtools&lt;/groupId&gt;
+            &lt;artifactId&gt;native-maven-plugin&lt;/artifactId&gt;
+            &lt;configuration&gt;
+                &lt;buildArgs&gt;
+                    &lt;buildArg&gt;-Ob&lt;/buildArg&gt;
+                &lt;/buildArgs&gt;
+            &lt;/configuration&gt;
+        &lt;/plugin&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;
+            &lt;artifactId&gt;spring-boot-maven-plugin&lt;/artifactId&gt;
+            &lt;configuration&gt;
+                &lt;image&gt;
+                    &lt;publish&gt;true&lt;/publish&gt;
+                    &lt;builder&gt;paketobuildpacks/builder-jammy-full:latest&lt;/builder&gt;
+                    &lt;name&gt;ghcr.io/dgawlik/webpage-serving:1.0.5&lt;/name&gt;
+                    &lt;env&gt;
+                        &lt;BP_JVM_VERSION&gt;21&lt;/BP_JVM_VERSION&gt;
+                    &lt;/env&gt;
+                &lt;/image&gt;
+                &lt;docker&gt;
+                    &lt;publishRegistry&gt;
+                        &lt;url&gt;https://ghcr.io/dgawlik&lt;/url&gt;
+                        &lt;username&gt;dgawlik&lt;/username&gt;
+                        &lt;password&gt;${env.GITHUB_TOKEN}&lt;/password&gt;
+                    &lt;/publishRegistry&gt;
+                &lt;/docker&gt;
+            &lt;/configuration&gt;
+        &lt;/plugin&gt;
+    &lt;/plugins&gt;
+&lt;/build&gt;
+</code></pre>
+<p>And second when you set publish property to true, the package step will automatically push the image to your repositry.</p>
+<p>The third - you pass -Ob parameter to GraalVM. This will insturct the runtime to do fastest,
+cheapest build possible. And of course - BP_JVM_VERSION has to be java of your project or
+things will not work.</p>
+<p>And last thing -- if you want debug the container, you will have to choose <em>paketobuildpacks/builder-jammy-full:latest</em> as other buildpacks don't include shell (shame).</p>
+<h2>Conclusion</h2>
+<p>I haven't covered everything, but everything else is in the repo. The repo is proof of concept that operators in Java are not complicated at all. I would say that even they are easier than in Go. So in the repo you will find following:</p>
+<ul>
+<li>spring-boot static server</li>
+<li>operator that watches CRD and mounts config maps in server so that it can serve the websites from the CRD</li>
+</ul>
+<p>So this basically is Operator hello world.</p>
+
+    <div>
+  
+</div></div></body></html>
