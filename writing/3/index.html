@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <title>Dominik Gawlik's Personal Page</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
+    <link href="/css/code_theme.css" rel="stylesheet">
+    <style>
+        a {
+            color: black;
+            cursor: pointer;
+        }
+        .date {
+            font-size: 1.2rem;
+            color: gray;
+            font-style: italics;
+        }
+        .topic {
+            font-size: 1.6rem;
+            color: black;
+            font-style: underline;
+        }
+        li {
+            list-style-type: '>';
+            padding-inline-start: 1ch;
+        }
+        h1 {
+            display: inline;
+            line-height: 20px;
+        }
+        body {
+            font-size: 1.3rem;
+        }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color: #dddddd; font-family: 'Noto Serif', serif;">
+    <div style="padding: 5rem; width: 60%; background-color: #fafafa;  margin-left: auto; margin-right: auto; box-shadow: 0px 0px 40px black;">
+        <h1>One Billion Rows Challenge</h1>
+<p>One thing that recently got nerd the hell out of me was <a href="https://www.morling.dev/blog/one-billion-row-challenge/">1 billion row challenge</a>.
+Citing the original site:</p>
+<blockquote>
+<p><em>Your mission, should you decide to accept it, is deceptively simple: write a Java program for retrieving temperature measurement values from a text file and calculating the min, mean, and max temperature per weather station. There’s just one caveat: the file has 1,000,000,000 rows!</em></p>
+</blockquote>
+<p>1 week after taking on the challenge there are several conclusions worth writing about.</p>
+<h3>Baseline</h3>
+<p>To make dev loop faster I decided limit the task to 100 million rows.</p>
+<p>The baseline is idiomatic streams, but single threaded.</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">CalculateAverage_baseline</span> <span class="token punctuation">{</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">final</span> <span class="token class-name">String</span> <span class="token constant">FILE</span> <span class="token operator">=</span> <span class="token string">"./measurements.txt"</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">record</span> <span class="token class-name">Measurement</span><span class="token punctuation">(</span><span class="token class-name">String</span> station<span class="token punctuation">,</span> <span class="token keyword">double</span> value<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">private</span> <span class="token class-name">Measurement</span><span class="token punctuation">(</span><span class="token class-name">String</span><span class="token punctuation">[</span><span class="token punctuation">]</span> parts<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">this</span><span class="token punctuation">(</span>parts<span class="token punctuation">[</span><span class="token number">0</span><span class="token punctuation">]</span><span class="token punctuation">,</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token function">parseDouble</span><span class="token punctuation">(</span>parts<span class="token punctuation">[</span><span class="token number">1</span><span class="token punctuation">]</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">record</span> <span class="token class-name">ResultRow</span><span class="token punctuation">(</span><span class="token keyword">double</span> min<span class="token punctuation">,</span> <span class="token keyword">double</span> mean<span class="token punctuation">,</span> <span class="token keyword">double</span> max<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+
+        <span class="token keyword">public</span> <span class="token class-name">String</span> <span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token function">round</span><span class="token punctuation">(</span>min<span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token string">"/"</span> <span class="token operator">+</span> <span class="token function">round</span><span class="token punctuation">(</span>mean<span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token string">"/"</span> <span class="token operator">+</span> <span class="token function">round</span><span class="token punctuation">(</span>max<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">private</span> <span class="token keyword">double</span> <span class="token function">round</span><span class="token punctuation">(</span><span class="token keyword">double</span> value<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">round</span><span class="token punctuation">(</span>value <span class="token operator">*</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">/</span> <span class="token number">10.0</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">class</span> <span class="token class-name">MeasurementAggregator</span> <span class="token punctuation">{</span>
+        <span class="token keyword">private</span> <span class="token keyword">double</span> min <span class="token operator">=</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token constant">POSITIVE_INFINITY</span><span class="token punctuation">;</span>
+        <span class="token keyword">private</span> <span class="token keyword">double</span> max <span class="token operator">=</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token constant">NEGATIVE_INFINITY</span><span class="token punctuation">;</span>
+        <span class="token keyword">private</span> <span class="token keyword">double</span> sum<span class="token punctuation">;</span>
+        <span class="token keyword">private</span> <span class="token keyword">long</span> count<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">void</span> <span class="token function">main</span><span class="token punctuation">(</span><span class="token class-name">String</span><span class="token punctuation">[</span><span class="token punctuation">]</span> args<span class="token punctuation">)</span> <span class="token keyword">throws</span> <span class="token class-name">IOException</span> <span class="token punctuation">{</span>
+
+        <span class="token class-name">Collector</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Measurement</span><span class="token punctuation">,</span> <span class="token class-name">MeasurementAggregator</span><span class="token punctuation">,</span> <span class="token class-name">ResultRow</span><span class="token punctuation">&gt;</span></span> collector <span class="token operator">=</span> <span class="token class-name">Collector</span><span class="token punctuation">.</span><span class="token function">of</span><span class="token punctuation">(</span>
+                <span class="token class-name">MeasurementAggregator</span><span class="token operator">::</span><span class="token keyword">new</span><span class="token punctuation">,</span>
+                <span class="token punctuation">(</span>a<span class="token punctuation">,</span> m<span class="token punctuation">)</span> <span class="token operator">-&gt;</span> <span class="token punctuation">{</span>
+                    a<span class="token punctuation">.</span>min <span class="token operator">=</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">min</span><span class="token punctuation">(</span>a<span class="token punctuation">.</span>min<span class="token punctuation">,</span> m<span class="token punctuation">.</span>value<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                    a<span class="token punctuation">.</span>max <span class="token operator">=</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">max</span><span class="token punctuation">(</span>a<span class="token punctuation">.</span>max<span class="token punctuation">,</span> m<span class="token punctuation">.</span>value<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                    a<span class="token punctuation">.</span>sum <span class="token operator">+=</span> m<span class="token punctuation">.</span>value<span class="token punctuation">;</span>
+                    a<span class="token punctuation">.</span>count<span class="token operator">++</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                <span class="token punctuation">(</span>agg1<span class="token punctuation">,</span> agg2<span class="token punctuation">)</span> <span class="token operator">-&gt;</span> <span class="token punctuation">{</span>
+                    <span class="token keyword">var</span> res <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">MeasurementAggregator</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+                    res<span class="token punctuation">.</span>min <span class="token operator">=</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">min</span><span class="token punctuation">(</span>agg1<span class="token punctuation">.</span>min<span class="token punctuation">,</span> agg2<span class="token punctuation">.</span>min<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                    res<span class="token punctuation">.</span>max <span class="token operator">=</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">max</span><span class="token punctuation">(</span>agg1<span class="token punctuation">.</span>max<span class="token punctuation">,</span> agg2<span class="token punctuation">.</span>max<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                    res<span class="token punctuation">.</span>sum <span class="token operator">=</span> agg1<span class="token punctuation">.</span>sum <span class="token operator">+</span> agg2<span class="token punctuation">.</span>sum<span class="token punctuation">;</span>
+                    res<span class="token punctuation">.</span>count <span class="token operator">=</span> agg1<span class="token punctuation">.</span>count <span class="token operator">+</span> agg2<span class="token punctuation">.</span>count<span class="token punctuation">;</span>
+
+                    <span class="token keyword">return</span> res<span class="token punctuation">;</span>
+                <span class="token punctuation">}</span><span class="token punctuation">,</span>
+                agg <span class="token operator">-&gt;</span> <span class="token punctuation">{</span>
+                    <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">ResultRow</span><span class="token punctuation">(</span>agg<span class="token punctuation">.</span>min<span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">round</span><span class="token punctuation">(</span>agg<span class="token punctuation">.</span>sum <span class="token operator">*</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">/</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">/</span> agg<span class="token punctuation">.</span>count<span class="token punctuation">,</span> agg<span class="token punctuation">.</span>max<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token class-name">Map</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">String</span><span class="token punctuation">,</span> <span class="token class-name">ResultRow</span><span class="token punctuation">&gt;</span></span> measurements <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">TreeMap</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span><span class="token class-name">Files</span><span class="token punctuation">.</span><span class="token function">lines</span><span class="token punctuation">(</span><span class="token class-name">Paths</span><span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span><span class="token constant">FILE</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+                <span class="token punctuation">.</span><span class="token function">map</span><span class="token punctuation">(</span>l <span class="token operator">-&gt;</span> <span class="token keyword">new</span> <span class="token class-name">Measurement</span><span class="token punctuation">(</span>l<span class="token punctuation">.</span><span class="token function">split</span><span class="token punctuation">(</span><span class="token string">";"</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+                <span class="token punctuation">.</span><span class="token function">collect</span><span class="token punctuation">(</span><span class="token function">groupingBy</span><span class="token punctuation">(</span>m <span class="token operator">-&gt;</span> m<span class="token punctuation">.</span><span class="token function">station</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">,</span> collector<span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token class-name">System</span><span class="token punctuation">.</span>out<span class="token punctuation">.</span><span class="token function">println</span><span class="token punctuation">(</span>measurements<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The performance:</p>
+<pre class="language-bash" tabindex="0"><code class="language-bash"><span class="token function">time</span> ./calculate_average_baseline.sh 
+
+real    0m15,846s
+user    0m16,002s
+sys     0m0,769s
+</code></pre>
+<h3>Parallelizing the code</h3>
+<p>My first thought was to parallelize the code and see how fast it will run. But since there will be concurrent
+accesses to the hashmap there has to be synchronization mechanism.</p>
+<p>One way is to use locks, but it turned out to be slow. And remembering we have 100 million rows locking on
+whole object would be very wasteful. Much better is to lock only on specific hashmap entry with given key.</p>
+<p>But that is a lot of work. Luckly there is a way that you can do it idiomatic way with <code>ConcurrentHashMap</code>.</p>
+<p>So the code reads file on the fly and uses Spliterator to carve out overflow of work to another thread run
+on <code>ForkJoinPool</code>. The bottleneck will probably be adding and modifying values of <code>ConcurrentHashMap</code>.</p>
+<p>Here is the next version:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">CalculateAverage_dg2</span> <span class="token punctuation">{</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">final</span> <span class="token class-name">String</span> <span class="token constant">FILE</span> <span class="token operator">=</span> <span class="token string">"./measurements.txt"</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">class</span> <span class="token class-name">Measurement</span> <span class="token punctuation">{</span>
+        <span class="token keyword">public</span> <span class="token keyword">double</span> min <span class="token operator">=</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token constant">MAX_VALUE</span><span class="token punctuation">;</span>
+        <span class="token keyword">public</span> <span class="token keyword">double</span> max <span class="token operator">=</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token constant">MIN_VALUE</span><span class="token punctuation">;</span>
+        <span class="token keyword">public</span> <span class="token keyword">double</span> sum <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+        <span class="token keyword">public</span> <span class="token keyword">double</span> count <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">public</span> <span class="token class-name">Measurement</span><span class="token punctuation">(</span><span class="token keyword">double</span> value<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">this</span><span class="token punctuation">.</span>min <span class="token operator">=</span> value<span class="token punctuation">;</span>
+            <span class="token keyword">this</span><span class="token punctuation">.</span>max <span class="token operator">=</span> value<span class="token punctuation">;</span>
+            <span class="token keyword">this</span><span class="token punctuation">.</span>sum <span class="token operator">=</span> value<span class="token punctuation">;</span>
+            <span class="token keyword">this</span><span class="token punctuation">.</span>count <span class="token operator">=</span> <span class="token number">1</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token annotation punctuation">@Override</span>
+        <span class="token keyword">public</span> <span class="token class-name">String</span> <span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token function">round</span><span class="token punctuation">(</span>min<span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token string">"/"</span> <span class="token operator">+</span> <span class="token function">round</span><span class="token punctuation">(</span>max<span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token string">"/"</span> <span class="token operator">+</span> <span class="token function">round</span><span class="token punctuation">(</span>sum <span class="token operator">/</span> count<span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">void</span> <span class="token function">main</span><span class="token punctuation">(</span><span class="token class-name">String</span><span class="token punctuation">[</span><span class="token punctuation">]</span> args<span class="token punctuation">)</span> <span class="token keyword">throws</span> <span class="token class-name">Exception</span> <span class="token punctuation">{</span>
+
+        <span class="token class-name">ConcurrentHashMap</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">String</span><span class="token punctuation">,</span> <span class="token class-name">Measurement</span><span class="token punctuation">&gt;</span></span> measurements <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ConcurrentHashMap</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token class-name">Files</span><span class="token punctuation">.</span><span class="token function">lines</span><span class="token punctuation">(</span><span class="token class-name">Path</span><span class="token punctuation">.</span><span class="token function">of</span><span class="token punctuation">(</span><span class="token constant">FILE</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">parallel</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">forEach</span><span class="token punctuation">(</span>line <span class="token operator">-&gt;</span> <span class="token punctuation">{</span>
+
+            <span class="token keyword">int</span> split <span class="token operator">=</span> line<span class="token punctuation">.</span><span class="token function">indexOf</span><span class="token punctuation">(</span><span class="token string">";"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token class-name">String</span> key <span class="token operator">=</span> line<span class="token punctuation">.</span><span class="token function">substring</span><span class="token punctuation">(</span><span class="token number">0</span><span class="token punctuation">,</span> split<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token keyword">double</span> val <span class="token operator">=</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token function">parseDouble</span><span class="token punctuation">(</span>line<span class="token punctuation">.</span><span class="token function">substring</span><span class="token punctuation">(</span>split <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            measurements<span class="token punctuation">.</span><span class="token function">compute</span><span class="token punctuation">(</span>key<span class="token punctuation">,</span> <span class="token punctuation">(</span>k<span class="token punctuation">,</span> _v<span class="token punctuation">)</span> <span class="token operator">-&gt;</span> <span class="token punctuation">{</span>
+                <span class="token keyword">if</span> <span class="token punctuation">(</span>_v <span class="token operator">==</span> <span class="token keyword">null</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                    <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">Measurement</span><span class="token punctuation">(</span>val<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span>
+
+                _v<span class="token punctuation">.</span>min <span class="token operator">=</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token function">min</span><span class="token punctuation">(</span>_v<span class="token punctuation">.</span>min<span class="token punctuation">,</span> val<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                _v<span class="token punctuation">.</span>max <span class="token operator">=</span> <span class="token class-name">Double</span><span class="token punctuation">.</span><span class="token function">max</span><span class="token punctuation">(</span>_v<span class="token punctuation">.</span>max<span class="token punctuation">,</span> val<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+                _v<span class="token punctuation">.</span>sum <span class="token operator">+=</span> val<span class="token punctuation">;</span>
+                _v<span class="token punctuation">.</span>count<span class="token operator">++</span><span class="token punctuation">;</span>
+
+                <span class="token keyword">return</span> _v<span class="token punctuation">;</span>
+            <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">var</span> sorted <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">TreeMap</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span>measurements<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token class-name">System</span><span class="token punctuation">.</span>out<span class="token punctuation">.</span><span class="token function">println</span><span class="token punctuation">(</span>sorted<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">double</span> <span class="token function">round</span><span class="token punctuation">(</span><span class="token keyword">double</span> value<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">return</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">round</span><span class="token punctuation">(</span>value <span class="token operator">*</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">/</span> <span class="token number">10.0</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The results:</p>
+<pre class="language-bash" tabindex="0"><code class="language-bash"><span class="token function">time</span> ./calculate_average_dg2.sh 
+real    0m4,992s
+user    0m33,384s
+sys     0m1,207s
+</code></pre>
+<p>On one hand spliterators performance is hard to beat because of <strong>data locality</strong> they preserve.
+Processors have limited amount of L1/L2/L3 caches so if you don't keep the data close to computation then
+this translates to cache missess. So best way is to perform operations "semi-sequentially".</p>
+<p>But... Streams create threads dynamically and this means you can't partition the data into well known parts. So the
+access has to be synchronized in one place and this one big problem here.</p>
+<p>Besides there are also other things that slow the implementation down.</p>
+<h3>Optimizations</h3>
+<p><strong>O1. Reading longs instead of bytes</strong></p>
+<p>At some point I remember read that everything is represented in JVM as an int. This means that even a byte is in fact and 4-byte int.
+So it is wasteful to search newline byte by byte. The trick is to load 8 bytes at once and find newline in whole batch.</p>
+<pre class="language-java" tabindex="0"><code class="language-java"> <span class="token keyword">long</span> word <span class="token operator">=</span> buffer<span class="token punctuation">.</span><span class="token function">getLong</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token keyword">long</span> match <span class="token operator">=</span> word <span class="token operator">^</span> <span class="token number">0</span>x0a0a0a0a0a0a0a0aL<span class="token punctuation">;</span>
+<span class="token keyword">long</span> line <span class="token operator">=</span> <span class="token punctuation">(</span>match <span class="token operator">-</span> <span class="token number">0</span>x0101010101010101L<span class="token punctuation">)</span> <span class="token operator">&amp;</span> <span class="token punctuation">(</span><span class="token operator">~</span>match <span class="token operator">&amp;</span> <span class="token number">0</span>x8080808080808080L<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token keyword">if</span> <span class="token punctuation">(</span>line <span class="token operator">==</span> <span class="token number">0</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    i <span class="token operator">+=</span> <span class="token number">8</span><span class="token punctuation">;</span>
+    <span class="token keyword">continue</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+
+next <span class="token operator">=</span> i <span class="token operator">+</span> <span class="token punctuation">(</span><span class="token class-name">Long</span><span class="token punctuation">.</span><span class="token function">numberOfLeadingZeros</span><span class="token punctuation">(</span>line<span class="token punctuation">)</span> <span class="token operator">&gt;&gt;&gt;</span> <span class="token number">3</span><span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">;</span>
+
+</code></pre>
+<p><strong>O2. Represent measurements as int / skip parsing</strong></p>
+<p>We can take advantage of the data format: floats have only one decimal point and temperatures are not greater or lesser than 100 points for sure.
+So the idea is to parse the number manually and multiply it by 10 so that it is the integer.</p>
+<p><strong>O3. Defer creating of String</strong></p>
+<p>Strings are a little bit heavy because they are not underlied by byte[] but char[]. So each time we create a string
+we encode it and according to the charset. We can defer creating strings until they are needed for printing. But we have to
+find some other key for the hashmap. This leads to ...</p>
+<p><strong>O4. Faster hashes</strong></p>
+<p>We are interested in fast hash for byte array. There is one suitable algorithm for this task is <a href="https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function">FNV</a>. And it is very simple:</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token annotation punctuation">@Override</span>
+<span class="token keyword">public</span> <span class="token keyword">int</span> <span class="token function">hashCode</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token keyword">long</span> hash <span class="token operator">=</span> <span class="token number">0x811C9DC5</span><span class="token punctuation">;</span>
+    <span class="token keyword">long</span> prime <span class="token operator">=</span> <span class="token number">0x01000193</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">byte</span> b <span class="token operator">:</span> bytes<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        hash <span class="token operator">=</span> hash <span class="token operator">^</span> b<span class="token punctuation">;</span>
+        hash <span class="token operator">*=</span> prime<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">return</span> <span class="token punctuation">(</span><span class="token keyword">int</span><span class="token punctuation">)</span> hash<span class="token punctuation">;</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p><strong>O5. Skipping synchronization</strong></p>
+<p>If we ditch the iterators and do computation on plain old threads then you can have partial hashmaps as many as threads.
+Then you can merge the results after the fact.</p>
+<p>Sure it will have poor data locality, but it still will be faster without synchronization.</p>
+<h3>Final version</h3>
+<p>This is the version that I was satisfied with finally.</p>
+<pre class="language-java" tabindex="0"><code class="language-java"><span class="token keyword">class</span> <span class="token class-name">Measurement</span> <span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">int</span> min <span class="token operator">=</span> <span class="token class-name">Integer</span><span class="token punctuation">.</span><span class="token constant">MAX_VALUE</span><span class="token punctuation">;</span>
+    <span class="token keyword">public</span> <span class="token keyword">int</span> max <span class="token operator">=</span> <span class="token class-name">Integer</span><span class="token punctuation">.</span><span class="token constant">MIN_VALUE</span><span class="token punctuation">;</span>
+    <span class="token keyword">public</span> <span class="token keyword">int</span> sum <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+    <span class="token keyword">public</span> <span class="token keyword">int</span> count <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">public</span> <span class="token class-name">Measurement</span><span class="token punctuation">(</span><span class="token keyword">int</span> value<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>min <span class="token operator">=</span> value<span class="token punctuation">;</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>max <span class="token operator">=</span> value<span class="token punctuation">;</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>sum <span class="token operator">=</span> value<span class="token punctuation">;</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>count <span class="token operator">=</span> <span class="token number">1</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token class-name">String</span> <span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">return</span> <span class="token function">round</span><span class="token punctuation">(</span>min <span class="token operator">/</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token string">"/"</span> <span class="token operator">+</span> <span class="token function">round</span><span class="token punctuation">(</span>max <span class="token operator">/</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token string">"/"</span> <span class="token operator">+</span> <span class="token function">round</span><span class="token punctuation">(</span><span class="token punctuation">(</span>sum <span class="token operator">/</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">/</span> count<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">double</span> <span class="token function">round</span><span class="token punctuation">(</span><span class="token keyword">double</span> value<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">return</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">round</span><span class="token punctuation">(</span>value <span class="token operator">*</span> <span class="token number">10.0</span><span class="token punctuation">)</span> <span class="token operator">/</span> <span class="token number">10.0</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+<span class="token punctuation">}</span>
+
+<span class="token keyword">class</span> <span class="token class-name">FastKey</span> <span class="token keyword">implements</span> <span class="token class-name">Comparable</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">FastKey</span><span class="token punctuation">&gt;</span></span> <span class="token punctuation">{</span>
+    <span class="token keyword">public</span> <span class="token keyword">byte</span><span class="token punctuation">[</span><span class="token punctuation">]</span> bytes<span class="token punctuation">;</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">final</span> <span class="token class-name">Charset</span> charset <span class="token operator">=</span> <span class="token class-name">Charset</span><span class="token punctuation">.</span><span class="token function">forName</span><span class="token punctuation">(</span><span class="token string">"UTF-8"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">public</span> <span class="token class-name">FastKey</span><span class="token punctuation">(</span><span class="token keyword">byte</span><span class="token punctuation">[</span><span class="token punctuation">]</span> bytes<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>bytes <span class="token operator">=</span> bytes<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token keyword">int</span> <span class="token function">hashCode</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">long</span> hash <span class="token operator">=</span> <span class="token number">0x811C9DC5</span><span class="token punctuation">;</span>
+        <span class="token keyword">long</span> prime <span class="token operator">=</span> <span class="token number">0x01000193</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">byte</span> b <span class="token operator">:</span> bytes<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            hash <span class="token operator">=</span> hash <span class="token operator">^</span> b<span class="token punctuation">;</span>
+            hash <span class="token operator">*=</span> prime<span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">return</span> <span class="token punctuation">(</span><span class="token keyword">int</span><span class="token punctuation">)</span> hash<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token keyword">boolean</span> <span class="token function">equals</span><span class="token punctuation">(</span><span class="token class-name">Object</span> obj<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>obj <span class="token operator">==</span> <span class="token keyword">this</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token boolean">true</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token operator">!</span><span class="token punctuation">(</span>obj <span class="token keyword">instanceof</span> <span class="token class-name">FastKey</span><span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">return</span> <span class="token boolean">false</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token class-name">FastKey</span> other <span class="token operator">=</span> <span class="token punctuation">(</span><span class="token class-name">FastKey</span><span class="token punctuation">)</span> obj<span class="token punctuation">;</span>
+
+        <span class="token keyword">return</span> <span class="token class-name">Arrays</span><span class="token punctuation">.</span><span class="token function">equals</span><span class="token punctuation">(</span>bytes<span class="token punctuation">,</span> other<span class="token punctuation">.</span>bytes<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token keyword">int</span> <span class="token function">compareTo</span><span class="token punctuation">(</span><span class="token class-name">FastKey</span> o<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">return</span> <span class="token class-name">Arrays</span><span class="token punctuation">.</span><span class="token function">compare</span><span class="token punctuation">(</span>bytes<span class="token punctuation">,</span> o<span class="token punctuation">.</span>bytes<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token class-name">String</span> <span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">return</span> <span class="token keyword">new</span> <span class="token class-name">String</span><span class="token punctuation">(</span>bytes<span class="token punctuation">,</span> charset<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+
+<span class="token keyword">class</span> <span class="token class-name">ComputeMeasurementsPartTask</span> <span class="token keyword">implements</span> <span class="token class-name">Callable</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Map</span><span class="token punctuation">&lt;</span><span class="token class-name">FastKey</span><span class="token punctuation">,</span> <span class="token class-name">Measurement</span><span class="token punctuation">&gt;</span><span class="token punctuation">&gt;</span></span> <span class="token punctuation">{</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">int</span> start<span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token keyword">int</span> end<span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token keyword">byte</span><span class="token punctuation">[</span><span class="token punctuation">]</span> bytes<span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token class-name">ByteBuffer</span> buffer<span class="token punctuation">;</span>
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">final</span> <span class="token class-name">Charset</span> charset <span class="token operator">=</span> <span class="token class-name">Charset</span><span class="token punctuation">.</span><span class="token function">forName</span><span class="token punctuation">(</span><span class="token string">"UTF-8"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">public</span> <span class="token class-name">ComputeMeasurementsPartTask</span><span class="token punctuation">(</span><span class="token keyword">byte</span><span class="token punctuation">[</span><span class="token punctuation">]</span> bytes<span class="token punctuation">,</span> <span class="token keyword">int</span> start<span class="token punctuation">,</span> <span class="token keyword">int</span> end<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>bytes <span class="token operator">=</span> bytes<span class="token punctuation">;</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>start <span class="token operator">=</span> start<span class="token punctuation">;</span>
+        <span class="token keyword">this</span><span class="token punctuation">.</span>end <span class="token operator">=</span> end<span class="token punctuation">;</span>
+
+        <span class="token keyword">if</span> <span class="token punctuation">(</span>start <span class="token operator">!=</span> <span class="token number">0</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">while</span> <span class="token punctuation">(</span>bytes<span class="token punctuation">[</span><span class="token keyword">this</span><span class="token punctuation">.</span>start<span class="token operator">++</span><span class="token punctuation">]</span> <span class="token operator">!=</span> <span class="token number">0x0a</span><span class="token punctuation">)</span>
+                <span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">while</span> <span class="token punctuation">(</span><span class="token keyword">this</span><span class="token punctuation">.</span>end <span class="token operator">!=</span> bytes<span class="token punctuation">.</span>length <span class="token operator">&amp;&amp;</span> bytes<span class="token punctuation">[</span><span class="token keyword">this</span><span class="token punctuation">.</span>end<span class="token punctuation">]</span> <span class="token operator">!=</span> <span class="token number">0x0a</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">this</span><span class="token punctuation">.</span>end<span class="token operator">++</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        buffer <span class="token operator">=</span> <span class="token class-name">ByteBuffer</span><span class="token punctuation">.</span><span class="token function">wrap</span><span class="token punctuation">(</span>bytes<span class="token punctuation">,</span> <span class="token keyword">this</span><span class="token punctuation">.</span>start<span class="token punctuation">,</span> <span class="token keyword">this</span><span class="token punctuation">.</span>end <span class="token operator">-</span> <span class="token keyword">this</span><span class="token punctuation">.</span>start<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+
+    <span class="token annotation punctuation">@Override</span>
+    <span class="token keyword">public</span> <span class="token class-name">Map</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">FastKey</span><span class="token punctuation">,</span> <span class="token class-name">Measurement</span><span class="token punctuation">&gt;</span></span> <span class="token function">call</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token keyword">throws</span> <span class="token class-name">Exception</span> <span class="token punctuation">{</span>
+        <span class="token keyword">var</span> measurements <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">HashMap</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">FastKey</span><span class="token punctuation">,</span> <span class="token class-name">Measurement</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">int</span> i <span class="token operator">=</span> start<span class="token punctuation">;</span>
+        <span class="token keyword">int</span> prev <span class="token operator">=</span> start<span class="token punctuation">;</span>
+        <span class="token keyword">int</span> next<span class="token punctuation">;</span>
+        <span class="token keyword">while</span> <span class="token punctuation">(</span><span class="token boolean">true</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">if</span> <span class="token punctuation">(</span>i <span class="token operator">+</span> <span class="token number">8</span> <span class="token operator">&gt;</span> end<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                next <span class="token operator">=</span> end<span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+            <span class="token keyword">else</span> <span class="token punctuation">{</span>
+                    <span class="token keyword">long</span> word <span class="token operator">=</span> buffer<span class="token punctuation">.</span><span class="token function">getLong</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+                    <span class="token keyword">long</span> match <span class="token operator">=</span> word <span class="token operator">^</span> <span class="token number">0</span>x0a0a0a0a0a0a0a0aL<span class="token punctuation">;</span>
+                    <span class="token keyword">long</span> line <span class="token operator">=</span> <span class="token punctuation">(</span>match <span class="token operator">-</span> <span class="token number">0</span>x0101010101010101L<span class="token punctuation">)</span> <span class="token operator">&amp;</span> <span class="token punctuation">(</span><span class="token operator">~</span>match <span class="token operator">&amp;</span> <span class="token number">0</span>x8080808080808080L<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+                    <span class="token keyword">if</span> <span class="token punctuation">(</span>line <span class="token operator">==</span> <span class="token number">0</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                        i <span class="token operator">+=</span> <span class="token number">8</span><span class="token punctuation">;</span>
+                        <span class="token keyword">continue</span><span class="token punctuation">;</span>
+                    <span class="token punctuation">}</span>
+
+                    next <span class="token operator">=</span> i <span class="token operator">+</span> <span class="token punctuation">(</span><span class="token class-name">Long</span><span class="token punctuation">.</span><span class="token function">numberOfLeadingZeros</span><span class="token punctuation">(</span>line<span class="token punctuation">)</span> <span class="token operator">&gt;&gt;&gt;</span> <span class="token number">3</span><span class="token punctuation">)</span> <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">;</span>
+
+                <span class="token keyword">int</span> splitIndex <span class="token operator">=</span> prev<span class="token punctuation">;</span>
+                <span class="token keyword">while</span> <span class="token punctuation">(</span>bytes<span class="token punctuation">[</span>splitIndex<span class="token punctuation">]</span> <span class="token operator">!=</span> <span class="token number">0x3b</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                    splitIndex<span class="token operator">++</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span>
+
+                <span class="token keyword">var</span> key <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">FastKey</span><span class="token punctuation">(</span><span class="token class-name">Arrays</span><span class="token punctuation">.</span><span class="token function">copyOfRange</span><span class="token punctuation">(</span>bytes<span class="token punctuation">,</span> prev<span class="token punctuation">,</span> splitIndex<span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+                <span class="token keyword">boolean</span> negative <span class="token operator">=</span> <span class="token boolean">false</span><span class="token punctuation">;</span>
+                <span class="token keyword">int</span> ind <span class="token operator">=</span> splitIndex <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">;</span>
+                <span class="token keyword">int</span> v <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span>
+
+                <span class="token keyword">if</span> <span class="token punctuation">(</span>bytes<span class="token punctuation">[</span>ind<span class="token punctuation">]</span> <span class="token operator">==</span> <span class="token punctuation">(</span><span class="token keyword">byte</span><span class="token punctuation">)</span> <span class="token char">'-'</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                    negative <span class="token operator">=</span> <span class="token boolean">true</span><span class="token punctuation">;</span>
+                    ind<span class="token operator">++</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span>
+
+                v <span class="token operator">=</span> bytes<span class="token punctuation">[</span>ind<span class="token operator">++</span><span class="token punctuation">]</span> <span class="token operator">-</span> <span class="token char">'0'</span><span class="token punctuation">;</span>
+
+                <span class="token keyword">if</span> <span class="token punctuation">(</span>bytes<span class="token punctuation">[</span>ind<span class="token punctuation">]</span> <span class="token operator">==</span> <span class="token punctuation">(</span><span class="token keyword">byte</span><span class="token punctuation">)</span> <span class="token char">'.'</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                    ind<span class="token operator">++</span><span class="token punctuation">;</span>
+
+                    v <span class="token operator">=</span> v <span class="token operator">*</span> <span class="token number">10</span> <span class="token operator">+</span> bytes<span class="token punctuation">[</span>ind<span class="token punctuation">]</span> <span class="token operator">-</span> <span class="token char">'0'</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span>
+                <span class="token keyword">else</span> <span class="token punctuation">{</span>
+                    v <span class="token operator">=</span> v <span class="token operator">*</span> <span class="token number">10</span> <span class="token operator">+</span> bytes<span class="token punctuation">[</span>ind<span class="token operator">++</span><span class="token punctuation">]</span> <span class="token operator">-</span> <span class="token char">'0'</span><span class="token punctuation">;</span>
+                    ind<span class="token operator">++</span><span class="token punctuation">;</span> <span class="token comment">// '.'</span>
+                    v <span class="token operator">=</span> v <span class="token operator">*</span> <span class="token number">10</span> <span class="token operator">+</span> bytes<span class="token punctuation">[</span>ind<span class="token punctuation">]</span> <span class="token operator">-</span> <span class="token char">'0'</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span>
+
+                <span class="token keyword">int</span> val <span class="token operator">=</span> negative <span class="token operator">?</span> <span class="token operator">-</span>v <span class="token operator">:</span> v<span class="token punctuation">;</span>
+
+                <span class="token keyword">var</span> _v <span class="token operator">=</span> measurements<span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span>key<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+                <span class="token keyword">if</span> <span class="token punctuation">(</span>_v <span class="token operator">!=</span> <span class="token keyword">null</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                    <span class="token keyword">if</span> <span class="token punctuation">(</span>val <span class="token operator">&lt;</span> _v<span class="token punctuation">.</span>min<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                        _v<span class="token punctuation">.</span>min <span class="token operator">=</span> val<span class="token punctuation">;</span>
+                    <span class="token punctuation">}</span>
+
+                    <span class="token keyword">if</span> <span class="token punctuation">(</span>val <span class="token operator">&gt;</span> _v<span class="token punctuation">.</span>max<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                        _v<span class="token punctuation">.</span>max <span class="token operator">=</span> val<span class="token punctuation">;</span>
+                    <span class="token punctuation">}</span>
+
+                    _v<span class="token punctuation">.</span>sum <span class="token operator">+=</span> val<span class="token punctuation">;</span>
+                    _v<span class="token punctuation">.</span>count<span class="token operator">++</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span>
+                <span class="token keyword">else</span> <span class="token punctuation">{</span>
+                    measurements<span class="token punctuation">.</span><span class="token function">put</span><span class="token punctuation">(</span>key<span class="token punctuation">,</span> <span class="token keyword">new</span> <span class="token class-name">Measurement</span><span class="token punctuation">(</span>val<span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+                <span class="token punctuation">}</span>
+
+                i <span class="token operator">=</span> prev <span class="token operator">=</span> next<span class="token punctuation">;</span>
+                buffer<span class="token punctuation">.</span><span class="token function">position</span><span class="token punctuation">(</span>next<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+
+            <span class="token keyword">if</span> <span class="token punctuation">(</span>next <span class="token operator">&gt;=</span> end<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+                <span class="token keyword">break</span><span class="token punctuation">;</span>
+            <span class="token punctuation">}</span>
+
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">return</span> measurements<span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+
+<span class="token keyword">public</span> <span class="token keyword">class</span> <span class="token class-name">CalculateAverage_dg</span> <span class="token punctuation">{</span>
+
+    <span class="token keyword">private</span> <span class="token keyword">static</span> <span class="token keyword">final</span> <span class="token class-name">String</span> <span class="token constant">FILE</span> <span class="token operator">=</span> <span class="token string">"./measurements.txt"</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">public</span> <span class="token keyword">static</span> <span class="token keyword">void</span> <span class="token function">main</span><span class="token punctuation">(</span><span class="token class-name">String</span><span class="token punctuation">[</span><span class="token punctuation">]</span> args<span class="token punctuation">)</span> <span class="token keyword">throws</span> <span class="token class-name">Exception</span> <span class="token punctuation">{</span>
+        <span class="token keyword">var</span> bytes <span class="token operator">=</span> <span class="token class-name">Files</span><span class="token punctuation">.</span><span class="token function">readAllBytes</span><span class="token punctuation">(</span><span class="token class-name">Path</span><span class="token punctuation">.</span><span class="token function">of</span><span class="token punctuation">(</span><span class="token constant">FILE</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">var</span> parts <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ArrayList</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Map</span><span class="token punctuation">&lt;</span><span class="token class-name">FastKey</span><span class="token punctuation">,</span> <span class="token class-name">Measurement</span><span class="token punctuation">&gt;</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token keyword">var</span> futures <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ArrayList</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token class-name">Future</span><span class="token punctuation">&lt;</span><span class="token class-name">Map</span><span class="token punctuation">&lt;</span><span class="token class-name">FastKey</span><span class="token punctuation">,</span> <span class="token class-name">Measurement</span><span class="token punctuation">&gt;</span><span class="token punctuation">&gt;</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">var</span> noOfThreads <span class="token operator">=</span> <span class="token class-name">Runtime</span><span class="token punctuation">.</span><span class="token function">getRuntime</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">availableProcessors</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">/</span> <span class="token number">2</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">int</span> chunkSize <span class="token operator">=</span> bytes<span class="token punctuation">.</span>length <span class="token operator">/</span> noOfThreads<span class="token punctuation">;</span>
+
+        <span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">int</span> i <span class="token operator">=</span> <span class="token number">0</span><span class="token punctuation">;</span> i <span class="token operator">&lt;</span> noOfThreads<span class="token punctuation">;</span> i<span class="token operator">++</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            <span class="token keyword">int</span> start <span class="token operator">=</span> i <span class="token operator">*</span> chunkSize<span class="token punctuation">;</span>
+            <span class="token keyword">int</span> end <span class="token operator">=</span> <span class="token class-name">Math</span><span class="token punctuation">.</span><span class="token function">min</span><span class="token punctuation">(</span><span class="token punctuation">(</span>i <span class="token operator">+</span> <span class="token number">1</span><span class="token punctuation">)</span> <span class="token operator">*</span> chunkSize<span class="token punctuation">,</span> bytes<span class="token punctuation">.</span>length<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+            <span class="token keyword">var</span> task <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">ComputeMeasurementsPartTask</span><span class="token punctuation">(</span>bytes<span class="token punctuation">,</span> start<span class="token punctuation">,</span> end<span class="token punctuation">)</span><span class="token punctuation">;</span>
+            futures<span class="token punctuation">.</span><span class="token function">add</span><span class="token punctuation">(</span><span class="token class-name">ForkJoinPool</span><span class="token punctuation">.</span><span class="token function">commonPool</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">submit</span><span class="token punctuation">(</span>task<span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">for</span> <span class="token punctuation">(</span><span class="token keyword">var</span> future <span class="token operator">:</span> futures<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+            parts<span class="token punctuation">.</span><span class="token function">add</span><span class="token punctuation">(</span>future<span class="token punctuation">.</span><span class="token function">get</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token punctuation">}</span>
+
+        <span class="token keyword">var</span> measurements <span class="token operator">=</span> parts<span class="token punctuation">.</span><span class="token function">stream</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">flatMap</span><span class="token punctuation">(</span>map <span class="token operator">-&gt;</span> map<span class="token punctuation">.</span><span class="token function">entrySet</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">.</span><span class="token function">stream</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span>
+                <span class="token punctuation">.</span><span class="token function">collect</span><span class="token punctuation">(</span>
+                        <span class="token class-name">Collectors</span><span class="token punctuation">.</span><span class="token function">toMap</span><span class="token punctuation">(</span>
+                                <span class="token class-name">Map<span class="token punctuation">.</span>Entry</span><span class="token operator">::</span><span class="token function">getKey</span><span class="token punctuation">,</span>
+                                <span class="token class-name">Map<span class="token punctuation">.</span>Entry</span><span class="token operator">::</span><span class="token function">getValue</span><span class="token punctuation">,</span>
+                                <span class="token punctuation">(</span>e1<span class="token punctuation">,</span> e2<span class="token punctuation">)</span> <span class="token operator">-&gt;</span> <span class="token punctuation">{</span>
+                                    e1<span class="token punctuation">.</span>min <span class="token operator">=</span> <span class="token class-name">Integer</span><span class="token punctuation">.</span><span class="token function">min</span><span class="token punctuation">(</span>e1<span class="token punctuation">.</span>min<span class="token punctuation">,</span> e2<span class="token punctuation">.</span>min<span class="token punctuation">)</span><span class="token punctuation">;</span>
+                                    e1<span class="token punctuation">.</span>max <span class="token operator">=</span> <span class="token class-name">Integer</span><span class="token punctuation">.</span><span class="token function">max</span><span class="token punctuation">(</span>e1<span class="token punctuation">.</span>max<span class="token punctuation">,</span> e2<span class="token punctuation">.</span>max<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+                                    e1<span class="token punctuation">.</span>sum <span class="token operator">+=</span> e2<span class="token punctuation">.</span>sum<span class="token punctuation">;</span>
+                                    e1<span class="token punctuation">.</span>count <span class="token operator">+=</span> e2<span class="token punctuation">.</span>count<span class="token punctuation">;</span>
+
+                                    <span class="token keyword">return</span> e1<span class="token punctuation">;</span>
+                                <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token keyword">var</span> sorted <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">TreeMap</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token punctuation">&gt;</span></span><span class="token punctuation">(</span>measurements<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+        <span class="token class-name">System</span><span class="token punctuation">.</span>out<span class="token punctuation">.</span><span class="token function">println</span><span class="token punctuation">(</span>sorted<span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token punctuation">}</span>
+<span class="token punctuation">}</span>
+</code></pre>
+<p>The time is impressive:</p>
+<pre class="language-bash" tabindex="0"><code class="language-bash"><span class="token function">time</span> ./calculate_average_dg.sh 
+
+real    0m2,229s
+user    0m4,960s
+sys     0m0,838s
+</code></pre>
+<p>So the first version would land somewhere in the end of the finalists table for the competition.
+And this version is 2 times faster. The fastest solution runs in only 500 ms so it is still 4 times faster.
+But there is point to do optimizations to certain extent. If you have to use Unsafe all the time to game the
+system then maybe it is better to write solution in C++?</p>
+<h3>Conclusions</h3>
+<p>I finally wrote version that runs 8 times faster than original and I'm pretty happy. I think the biggest revelation for
+me is that Java is actually already very fast. The best you can do is to get out of it's way. If you know the API and
+know what to use when you won't have problems with running your code a little bit faster.</p>
+<p>The competition was kind of elite and some solutions are really really good. For example first place went to
+the founder of GraalVM so these guys definitely know what they are doing. But for me gaming the system with usafe is no-go.
+I would use C++ instead directly.</p>
+<p>I also was impressed how fast <code>ConcurrentHashMap</code> really is, I really had trouble with implementing anything faster
+until I ultimately ditched this train of thought alltogether.</p>
+
+    <div>
+  
+</div></div></body></html>
