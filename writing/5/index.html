@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <title>Dominik Gawlik's Personal Page</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
+    <link href="/css/code_theme.css" rel="stylesheet">
+    <style>
+        a {
+            color: black;
+            cursor: pointer;
+        }
+        .date {
+            font-size: 1.2rem;
+            color: gray;
+            font-style: italics;
+        }
+        .topic {
+            font-size: 1.6rem;
+            color: black;
+            font-style: underline;
+        }
+        li {
+            list-style-type: '>';
+            padding-inline-start: 1ch;
+        }
+        h1 {
+            display: inline;
+            line-height: 20px;
+        }
+        body {
+            font-size: 1.3rem;
+        }
+    </style>
+  </head>
+  <body style="margin:0; padding:0; background-color: #dddddd; font-family: 'Noto Serif', serif;">
+    <div style="padding: 5rem; width: 60%; background-color: #fafafa;  margin-left: auto; margin-right: auto; box-shadow: 0px 0px 40px black;">
+        <h1>Thoughts on logging</h1>
+<blockquote>
+<p>Everything is complicated, even those things that seem flat in their bleakness.</p>
+</blockquote>
+<p>Logging frameworks are usually last thing that most of the people tend to look at. There
+was a brief moment of attention of the occasion of <strong>log4shell vulnerability</strong> but things
+have settled already again.</p>
+<p>But debugging with scarce information is one of those cases that makes you wonder how to improve
+the process. This is the exact moment at my current job. So I volunteered and over the weekend
+did some research on my own.</p>
+<h3>Structured logging</h3>
+<p>There are 2 types of logs in general:</p>
+<ul>
+<li>structured - mostly json format</li>
+<li>unstructured - formatted strings</li>
+</ul>
+<p>Unstructured logging is what you have from the start. You configure logger to output strings to console
+or some files (maybe on rolling basis). The problems become evident when you have distributed system and
+try to make out what happend there. Sometimes it is not that bad because smaller/medium bugs tend to be pretty localized to particular service. But when there is a fundamental flaw in the design of the system then you
+won't catch it juggling files from 15 different services.</p>
+<p>The solution is of course centralized logging and there are several options on the market. There are some early trends to unify all 3 pillars of observability (tracing, metrics, logs) into one platform. This is thanks to the
+<a href="https://opentracing.io/">OpenTracing</a> initiatitive to which collectors try to align to. I'm really curious about
+<a href="https://docs.lightstep.com/docs/welcome-to-lightstep">Lightstep</a> which got recently acquired by ServiceNow. But for experimenting I always pick up Open Source solutions.</p>
+<p>With most platform you can perform <em>ingestion</em> from whatever you want. You could take unstructured log and put
+some parsing on the lines. But I guess that would not be very performant starting from medium scaled system.
+If you have one Logstash for 20+ services I bet it will have performance issues (since they introduced Beats) to
+offload it. Having multiple logstash sidecars is better solution but it cuts deep into the mesh. Coming back to
+performance view it is much better to create structured output from the start.</p>
+<h3>Testbed</h3>
+<p>I had several tries over two weekends.</p>
+<p>One setup was ELK stack. I used this <a href="https://github.com/dgawlik/elkstack">repo</a> to run ElasticSearch and Kibana locally. And then there are basically two approaches how to ingest the logs (I have tried both). Number one: have a log trailer, that will follow up a file and transmit it to collector (FileBeat / Logstash). But this whole lot of work if you have a lot of services. I'm more inclined to minimal solution which is crafting your own logback appender that will send the logs directly to the ElasticSearch endpoint. Which I did and it turned out quite well. The throughput was impressive over 10k logs per second sent each 5 seconds. And all in just &lt;200 lines of code.</p>
+<p>Then I tried also Spring Boot 3 metrics api with loki. The approach was to use distirbuted tracing to enforce correlation ids and spans into logs and metrics. And loki is marketed as cost effective solution for logs. What this means is that it doesnt't do full text indexing of logs, instead it requires up-front annotations to categorize the logs. I haven't used this method in commercial setup yet so I can't tell if this seriuosly limits the bug detection but I guess it does. So if I had to choose I would stay with ELK stack.</p>
+<h3>Code</h3>
+<p>I have developed a simple distributed system that you can deploy yourself  by Docker Compose / K8s. Initiallly I tried to evaluate Sig-noz but discarded it as not mature enough. So here it <a href="https://github.com/dgawlik/signoz-eval">is</a>.</p>
+<h3>Conclusion</h3>
+<p>Future is integration of all three pillars of observability. But as of now we are in the very early phase of adoption so it will take couple of years to see what will become of it.</p>
+<p>The ELK stack is for me the most simple solution to deploy. I prefer simplicity of having application own implementation of appender sending directly to collector.</p>
+<p>There are so many observability solutions that it is quite hard to keep track of them. One particular ingester that I liked was Vector by Datadog. It is written in Rust and ingests the whole K8s logs in no time (and can send them anywhere you want). It was simple to deploy and configure, but has advanced features. It does not differ much from Logstash.</p>
+<p>So there you have it, my reasearch on observability.</p>
+
+    <div>
+  
+</div></div></body></html>
