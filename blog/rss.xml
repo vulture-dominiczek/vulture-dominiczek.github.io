@@ -17,7 +17,7 @@
             <content:encoded><![CDATA[<p>There was a challenge for me recently to search for SQL queries in large codebase. There is a problem
 with using basic grep or even IntelliJ search here because of the performance issues.</p>
 <ul>
-<li>queries are long</li>
+<li>queries are long and dynamically appended</li>
 <li>codebase is large</li>
 <li>string searching is not performant enough.</li>
 </ul>
